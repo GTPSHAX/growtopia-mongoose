@@ -6,7 +6,6 @@ repo_root="$(cd "$script_dir/.." && pwd)"
 
 build_dir="$repo_root/build"
 build_type="Debug"
-use_openssl="OFF"
 clean="no"
 
 usage() {
@@ -16,7 +15,6 @@ Usage: scripts/build.sh [options]
 Options:
   --release          Build with CMAKE_BUILD_TYPE=Release
   --debug            Build with CMAKE_BUILD_TYPE=Debug
-  --openssl          Build with OpenSSL instead of Mongoose built-in TLS
   --build-dir DIR    Build directory, default ./build
   --clean            Remove the build directory before configuring
   --help             Show this help
@@ -30,9 +28,6 @@ while [ "$#" -gt 0 ]; do
       ;;
     --debug)
       build_type="Debug"
-      ;;
-    --openssl)
-      use_openssl="ON"
       ;;
     --build-dir)
       shift
@@ -68,7 +63,6 @@ if [ "$clean" = "yes" ]; then
 fi
 
 cmake -S "$repo_root" -B "$build_dir" \
-  -DCMAKE_BUILD_TYPE="$build_type" \
-  -DUSE_OPENSSL="$use_openssl"
+  -DCMAKE_BUILD_TYPE="$build_type"
 
 cmake --build "$build_dir"
