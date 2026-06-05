@@ -62,7 +62,7 @@
 /*
 * For plaintext HTTP connections, MG_IO_SIZE can be reduced to 512 bytes.
 */
-#define MG_IO_SIZE 512
+#define MG_IO_SIZE 8192
 
 #define MG_ENABLE_POSIX_FS 1
 
