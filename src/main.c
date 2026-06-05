@@ -92,10 +92,15 @@ static void on_http_event(struct mg_connection *c, int ev, void *ev_data) {
 
     memset(&opts, 0, sizeof(opts));
     opts.root_dir = state->config.root_dir;
+    opts.fs = &mg_fs_posix; 
+    
     mg_http_serve_dir(c, hm, &opts);
 
     MG_INFO(("%.*s %.*s", (int) hm->method.len, hm->method.buf,
              (int) hm->uri.len, hm->uri.buf));
+  } else if (ev == MG_EV_ERROR) {
+    char *error_msg = (char *) ev_data;
+    MG_ERROR(("Server connection error occurred: %s", error_msg));
   }
 }
 
@@ -115,11 +120,14 @@ int main(int argc, char **argv) {
   signal(SIGTERM, on_signal);
   setvbuf(stdout, NULL, _IONBF, 0);
   mg_log_set(state.config.log_level);
+  
+  // Initialize the event manager
   mg_mgr_init(&mgr);
 
+  // Instantiate HTTP listener on the target URL
   http_listener = mg_http_listen(&mgr, state.config.http_addr, on_http_event, &state);
   if (http_listener == NULL) {
-    MG_ERROR(("Cannot listen on %s", state.config.http_addr));
+    MG_ERROR(("Failed to bind server listener to %s", state.config.http_addr));
     mg_mgr_free(&mgr);
     return 1;
   }
@@ -133,6 +141,8 @@ int main(int argc, char **argv) {
   }
 
   MG_INFO(("Stopping on signal %d", (int) s_stop));
+  
+  // Cleanup structures
   mg_mgr_free(&mgr);
   return 0;
 }
