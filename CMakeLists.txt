@@ -18,7 +18,7 @@ set(PROJECT_SOURCES
 
 add_executable(${APP_NAME} ${PROJECT_SOURCES})
 
-target_include_directories(${APP_NAME} PRIVATE 
+target_include_directories(${APP_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/mongoose
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -32,8 +32,6 @@ endif()
 
 target_compile_definitions(${APP_NAME} PRIVATE
   MG_ARCH=MG_ARCH_CUSTOM
-  MG_ENABLE_POSIX_FS=1
-  MG_ENABLE_DIRLIST=1
 )
 
 if(WIN32)
@@ -41,9 +39,9 @@ if(WIN32)
 else()
   find_package(Threads REQUIRED)
   target_compile_definitions(${APP_NAME} PRIVATE _GNU_SOURCE)
-  target_link_libraries(${APP_NAME} PRIVATE 
-    Threads::Threads 
-    m 
+  target_link_libraries(${APP_NAME} PRIVATE
+    Threads::Threads
+    m
     ${CMAKE_DL_LIBS}
   )
 endif()
