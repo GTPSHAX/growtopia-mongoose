@@ -92,7 +92,7 @@ static void on_http_event(struct mg_connection *c, int ev, void *ev_data) {
 
     memset(&opts, 0, sizeof(opts));
     opts.root_dir = state->config.root_dir;
-    opts.fs = &mg_fs_posix; 
+    opts.fs = &mg_fs_posix;
     
     mg_http_serve_dir(c, hm, &opts);
 
