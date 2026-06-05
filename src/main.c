@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   MG_INFO(("Web root       : %s", state.config.root_dir));
 
   while (s_stop == 0) {
-    mg_mgr_poll(&mgr, 1000);
+    mg_mgr_poll(&mgr, 5);
   }
 
   MG_INFO(("Stopping on signal %d", (int) s_stop));
