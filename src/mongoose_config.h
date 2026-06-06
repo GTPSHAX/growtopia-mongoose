@@ -26,6 +26,13 @@
   #include <windows.h>
   #include <io.h>
   #include <direct.h>
+
+  #if defined(_MSC_VER)
+    #include <malloc.h>
+    #ifndef alloca
+      #define alloca(size) _alloca(size)
+    #endif
+  #endif
   
   #define mkdir(path, mode) _mkdir(path)
   
