@@ -97,6 +97,41 @@ static int parse_args(int argc, char **argv, struct server_config *config) {
   return 1;
 }
 
+static void log_missing_requested_path(const struct server_config *config,
+                                       const struct mg_http_message *hm) {
+  char uri[MG_PATH_MAX];
+  char path[MG_PATH_MAX];
+  const char *rel;
+  size_t root_len;
+  int uri_len;
+
+  uri_len = mg_url_decode(hm->uri.buf, hm->uri.len, uri, sizeof(uri), 0);
+  if (uri_len < 0) {
+    MG_ERROR(("WARN invalid request path: %.*s", (int) hm->uri.len,
+              hm->uri.buf));
+    return;
+  }
+
+  uri[uri_len] = '\0';
+  if (!mg_path_is_sane(mg_str_n(uri, (size_t) uri_len))) return;
+
+  rel = uri;
+  while (*rel == '/' || *rel == '\\') rel++;
+
+  root_len = strlen(config->root_dir);
+  if (root_len > 0 &&
+      (config->root_dir[root_len - 1] == '/' ||
+       config->root_dir[root_len - 1] == '\\')) {
+    mg_snprintf(path, sizeof(path), "%s%s", config->root_dir, rel);
+  } else {
+    mg_snprintf(path, sizeof(path), "%s/%s", config->root_dir, rel);
+  }
+
+  if (mg_fs_posix.st(path, NULL, NULL) == 0) {
+    MG_ERROR(("WARN requested file does not exist: %s", path));
+  }
+}
+
 static void on_http_event(struct mg_connection *c, int ev, void *ev_data) {
   struct server_state *state = (struct server_state *) c->fn_data;
 
@@ -111,6 +146,8 @@ static void on_http_event(struct mg_connection *c, int ev, void *ev_data) {
     memset(&opts, 0, sizeof(opts));
     opts.root_dir = state->config.root_dir;
     opts.fs = &mg_fs_posix;
+
+    log_missing_requested_path(&state->config, hm);
     
     mg_http_serve_dir(c, hm, &opts);
 
