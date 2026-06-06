@@ -124,7 +124,7 @@ static void on_http_event(struct mg_connection *c, int ev, void *ev_data) {
 
 int main(int argc, char **argv) {
   struct server_state state = {
-    {"http://0.0.0.0:8000", "public", MG_LL_INFO},
+    {"http://0.0.0.0:8080", "public", MG_LL_INFO},
   };
   struct mg_mgr mgr;
   struct mg_connection *http_listener;
