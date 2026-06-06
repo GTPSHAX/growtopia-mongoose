@@ -63,6 +63,12 @@
   #include <signal.h>
 #endif
 
+#define MG_ARCH MG_ARCH_CUSTOM
+
+#ifdef _WIN32
+  #define MG_ARCH MG_ARCH_WIN32
+#endif
+
 /*
  * Set to 0 for desktop OS environments to use the native socket stack.
  */
