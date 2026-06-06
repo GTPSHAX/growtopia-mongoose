@@ -30,6 +30,10 @@ else()
   target_compile_options(${APP_NAME} PRIVATE -fno-tree-loop-distribute-patterns)
 endif()
 
+target_compile_definitions(${APP_NAME} PRIVATE
+  MG_ARCH=MG_ARCH_CUSTOM
+)
+
 if(WIN32)
   target_link_libraries(${APP_NAME} PRIVATE ws2_32 crypt32)
 else()
