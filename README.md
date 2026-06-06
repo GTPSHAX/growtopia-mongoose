@@ -189,7 +189,7 @@ powershell -ExecutionPolicy Bypass -File scripts\tune_highload.ps1
 
 ## License
 
-This project does not currently include a license file. Please contact the author for usage terms.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Author
 
