@@ -187,6 +187,21 @@ powershell -ExecutionPolicy Bypass -File scripts\tune_highload.ps1
 
 > These scripts are intended for server/benchmark environments. Avoid running them on personal or shared machines without understanding the implications.
 
+## Server Setup
+Scripts are provided to set up firewall rules allowing incoming traffic on the server port from [Cloudflare's IP ranges](https://www.cloudflare.com/ips-v4/). These must be run with elevated privileges.
+
+### Linux: `scripts/setup-server.sh`
+
+```bash
+sudo bash scripts/setup-server.sh
+```
+
+### Windows: `scripts/setup-server.ps1`
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-server.ps1
+```
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
