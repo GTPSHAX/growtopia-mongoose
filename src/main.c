@@ -21,6 +21,24 @@ static void on_signal(int signo) {
   s_stop = signo;
 }
 
+static int platform_net_init(void) {
+#if defined(_WIN32) && MG_ARCH == MG_ARCH_CUSTOM && MG_ENABLE_WINSOCK
+  WSADATA data;
+  int rc = WSAStartup(MAKEWORD(2, 2), &data);
+  if (rc != 0) {
+    fprintf(stderr, "WSAStartup failed: %d\n", rc);
+    return 0;
+  }
+#endif
+  return 1;
+}
+
+static void platform_net_free(void) {
+#if defined(_WIN32) && MG_ARCH == MG_ARCH_CUSTOM && MG_ENABLE_WINSOCK
+  WSACleanup();
+#endif
+}
+
 static void usage(const char *program) {
   fprintf(stderr,
           "Mongoose v%s static HTTP server\n"
@@ -120,6 +138,8 @@ int main(int argc, char **argv) {
   signal(SIGTERM, on_signal);
   setvbuf(stdout, NULL, _IONBF, 0);
   mg_log_set(state.config.log_level);
+
+  if (!platform_net_init()) return 1;
   
   // Initialize the event manager
   mg_mgr_init(&mgr);
@@ -129,6 +149,7 @@ int main(int argc, char **argv) {
   if (http_listener == NULL) {
     MG_ERROR(("Failed to bind server listener to %s", state.config.http_addr));
     mg_mgr_free(&mgr);
+    platform_net_free();
     return 1;
   }
 
@@ -144,5 +165,6 @@ int main(int argc, char **argv) {
   
   // Cleanup structures
   mg_mgr_free(&mgr);
+  platform_net_free();
   return 0;
 }
