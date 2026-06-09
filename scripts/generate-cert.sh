@@ -2,6 +2,13 @@
 
 set -e
 
+# Color definitions
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+CYAN=$(tput setaf 6)
+NC=$(tput sgr0) # No Color
+
 CERT_FILE="dist/certs/server.crt"
 KEY_FILE="dist/certs/server.key"
 CN="localhost"
@@ -76,6 +83,7 @@ openssl req \
   -keyout "${KEY_FILE}" \
   -out "${CERT_FILE}" \
   -subj "/CN=${CN}" \
+  -addext "basicConstraints=critical,CA:TRUE" \
   -addext "subjectAltName=${SAN}"
 
 echo "Certificate : ${CERT_FILE}"
