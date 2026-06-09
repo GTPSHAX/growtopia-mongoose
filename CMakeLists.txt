@@ -16,6 +16,8 @@ set(PROJECT_SOURCES
   lib/mongoose/mongoose.c
 )
 
+add_subdirectory(third_party)
+
 add_executable(${APP_NAME} ${PROJECT_SOURCES})
 
 target_include_directories(${APP_NAME} PRIVATE
