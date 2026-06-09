@@ -86,5 +86,51 @@ openssl req \
   -addext "basicConstraints=critical,CA:TRUE" \
   -addext "subjectAltName=${SAN}"
 
-echo "Certificate : ${CERT_FILE}"
-echo "Private Key : ${KEY_FILE}"
+echo "${CYAN}Certificate : ${CERT_FILE}${NC}"
+echo "${CYAN}Private Key : ${KEY_FILE}${NC}"
+
+# Register the certificate to the system trust store
+echo "---"
+echo "${GREEN}Attempting to register certificate to the system trust store...${NC}"
+
+if [[ ! -f "${CERT_FILE}" ]]; then
+  echo "${RED}Error: Certificate file not found at ${CERT_FILE}${NC}"
+  exit 1
+fi
+
+if command -v update-ca-certificates >/dev/null 2>&1; then
+  echo "${YELLOW}Detected Debian/Ubuntu-based system.${NC}"
+  sudo rm -f "/usr/local/share/ca-certificates/growtopia-mongoose-local.crt"
+  sudo cp "${CERT_FILE}" "/usr/local/share/ca-certificates/growtopia-mongoose-local.crt"
+  sudo update-ca-certificates
+  echo "${GREEN}System certificate successfully registered.${NC}"
+
+elif command -v update-ca-trust >/dev/null 2>&1; then
+  echo "${YELLOW}Detected RHEL/Fedora-based system.${NC}"
+  sudo rm -f "/etc/pki/ca-trust/source/anchors/growtopia-mongoose-local.crt"
+  sudo cp "${CERT_FILE}" "/etc/pki/ca-trust/source/anchors/growtopia-mongoose-local.crt"
+  sudo update-ca-trust
+  echo "${GREEN}System certificate successfully registered.${NC}"
+
+elif command -v trust >/dev/null 2>&1; then
+  echo "${YELLOW}Detected system using trust (p11-kit).${NC}"
+  sudo trust anchor --store "${CERT_FILE}"
+  echo "${GREEN}System certificate successfully registered.${NC}"
+
+else
+  echo "${RED}Could not automatically determine how to update the system trust store.${NC}"
+  echo "Please manually install '${CERT_FILE}' to your OS trusted root certificates."
+fi
+
+echo "---"
+echo "${YELLOW}NOTE FOR FIREFOX USERS:${NC}"
+echo "Firefox on Linux does NOT use the system certificate store by default."
+echo "To trust this certificate in Firefox, follow these steps:"
+echo "  1. Open Firefox and go to: ${CYAN}about:preferences#privacy${NC}"
+echo "  2. Scroll to the bottom and click ${CYAN}'View Certificates...'"
+echo "  3. In the 'Authorities' tab, click ${CYAN}'Import...'"
+echo "  4. Select this file: ${CYAN}${CERT_FILE}${NC}"
+echo "  5. Check the box: ${CYAN}'Trust this CA to identify websites'${NC}"
+echo "  6. Click OK. The warning will be gone."
+echo ""
+echo "${GREEN}Setup complete!${NC}"
