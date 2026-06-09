@@ -3,7 +3,7 @@ setlocal
 
 set "SCRIPT_DIR=%~dp0"
 set "REPO_ROOT=%SCRIPT_DIR%.."
-set "BUILD_DIR=%REPO_ROOT%\build"
+set "BUILD_DIR=%REPO_ROOT%\build\windows"
 set "BUILD_TYPE=Debug"
 set "CLEAN=no"
 
@@ -45,7 +45,7 @@ echo.
 echo Options:
 echo   --release          Build with Release config
 echo   --debug            Build with Debug config
-echo   --build-dir DIR    Build directory, default .\build
+echo   --build-dir DIR    Build directory, default .\build\windows
 echo   --clean            Remove the build directory before configuring
 echo   --help             Show this help
 exit /b 0

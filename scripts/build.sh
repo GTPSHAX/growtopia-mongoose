@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
-build_dir="$repo_root/build"
+build_dir="$repo_root/build/linux"
 build_type="Debug"
 clean="no"
 
@@ -15,7 +15,7 @@ Usage: scripts/build.sh [options]
 Options:
   --release          Build with CMAKE_BUILD_TYPE=Release
   --debug            Build with CMAKE_BUILD_TYPE=Debug
-  --build-dir DIR    Build directory, default ./build
+  --build-dir DIR    Build directory, default ./build/linux
   --clean            Remove the build directory before configuring
   --help             Show this help
 EOF

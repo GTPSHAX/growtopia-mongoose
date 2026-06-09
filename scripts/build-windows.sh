@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
-build_dir="$repo_root/build/build-windows"
+build_dir="$repo_root/build/windows"
 build_type="Release"
 clean="no"
 generator=""
@@ -16,7 +16,7 @@ Usage: scripts/build-windows.sh [options]
 Options:
   --release          Build with CMAKE_BUILD_TYPE=Release (default)
   --debug            Build with CMAKE_BUILD_TYPE=Debug
-  --build-dir DIR    Build directory, default ./build-windows
+  --build-dir DIR    Build directory, default ./build/windows
   --clean            Remove build directory before configuring
   --generator GEN    CMake generator (e.g. Ninja)
   --help             Show this help
