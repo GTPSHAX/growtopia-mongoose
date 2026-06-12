@@ -29,6 +29,15 @@ struct HeaderBuffer
   size_t capacity;
 };
 
+struct HttpResponseParts
+{
+  int status_code;
+  size_t header_len;
+  size_t body_len;
+  size_t content_length;
+  int has_content_length;
+};
+
 static char *read_file_to_string(const char *filename, size_t *out_size)
 {
   FILE *f = fopen(filename, "rb");
@@ -87,6 +96,75 @@ header_iterator(void *cls, enum MHD_ValueKind kind, const char *key, const char 
   memcpy(hb->data + hb->size, header_line, len);
   hb->size += len;
   return MHD_YES;
+}
+
+static int
+parse_http_response(const char *response, size_t response_size, struct HttpResponseParts *parts)
+{
+  const char *header_end = NULL;
+  const char *line = NULL;
+  const char *next = NULL;
+
+  memset(parts, 0, sizeof(*parts));
+  parts->status_code = 502;
+
+  header_end = strstr(response, "\r\n\r\n");
+  if (header_end == NULL) return 0;
+
+  parts->header_len = (size_t) (header_end - response) + 4;
+  parts->body_len = response_size - parts->header_len;
+
+  if (sscanf(response, "HTTP/1.%*d %d", &parts->status_code) != 1) {
+    parts->status_code = 502;
+  }
+
+  line = response;
+  while (line < header_end) {
+    next = strstr(line, "\r\n");
+    if (next == NULL || next > header_end) break;
+
+    if (next > line) {
+      const char *colon = memchr(line, ':', (size_t) (next - line));
+      if (colon != NULL) {
+        size_t key_len = (size_t) (colon - line);
+        const char *value = colon + 1;
+        while (value < next && (*value == ' ' || *value == '\t')) value++;
+
+        if (key_len == strlen("Content-Length") &&
+            strncasecmp(line, "Content-Length", key_len) == 0) {
+          char *end = NULL;
+          unsigned long parsed = strtoul(value, &end, 10);
+          if (end != value) {
+            parts->content_length = (size_t) parsed;
+            parts->has_content_length = 1;
+          }
+        }
+      }
+    }
+
+    line = next + 2;
+  }
+
+  return 1;
+}
+
+static int
+recv_all(int sock, char **buffer, size_t *capacity, size_t *size)
+{
+  ssize_t n;
+
+  while ((n = recv(sock, *buffer + *size, *capacity - *size, 0)) > 0) {
+    *size += (size_t) n;
+    if (*size == *capacity) {
+      size_t new_capacity = (*capacity) * 2;
+      char *new_buffer = realloc(*buffer, new_capacity);
+      if (new_buffer == NULL) return 0;
+      *buffer = new_buffer;
+      *capacity = new_capacity;
+    }
+  }
+
+  return n >= 0;
 }
 
 static enum MHD_Result
@@ -163,68 +241,95 @@ access_handler(void *cls, struct MHD_Connection *connection,
     send(sock, rs->body, rs->body_size, 0);
   }
 
-  /* Receive backend response dynamically */
-  size_t resp_capacity = 8192;
-  char *response = malloc(resp_capacity);
-  size_t total_recv = 0;
-  ssize_t n;
+  shutdown(sock, SHUT_WR);
 
-  while ((n = recv(sock, response + total_recv, resp_capacity - total_recv - 1, 0)) > 0)
-  {
-    total_recv += n;
-    if (total_recv >= resp_capacity - 1)
-    {
-      resp_capacity *= 2;
-      response = realloc(response, resp_capacity);
+  size_t resp_capacity = 8192;
+  size_t total_recv = 0;
+  char *response = malloc(resp_capacity);
+  struct HttpResponseParts response_parts;
+
+  if (response == NULL) {
+    close(sock);
+    free(rs->body);
+    free(rs);
+    *con_cls = NULL;
+    return MHD_NO;
+  }
+
+  if (!recv_all(sock, &response, &resp_capacity, &total_recv)) {
+    close(sock);
+    free(response);
+    free(rs->body);
+    free(rs);
+    *con_cls = NULL;
+    return MHD_NO;
+  }
+
+  if (total_recv == resp_capacity) {
+    char *new_response = realloc(response, resp_capacity + 1);
+    if (new_response != NULL) {
+      response = new_response;
+      resp_capacity += 1;
     }
   }
+
   response[total_recv] = '\0';
   close(sock);
 
-  char *header_end = strstr(response, "\r\n\r\n");
-  int status_code = 502; /* Bad Gateway default */
-
-  if (header_end)
+  if (parse_http_response(response, total_recv, &response_parts))
   {
-    *header_end = '\0';
-    char *body = header_end + 4;
-    size_t body_len = total_recv - (body - response);
+    char *body = response + response_parts.header_len;
+    size_t body_len = response_parts.body_len;
+    int status_code = response_parts.status_code;
 
-    /* Extract status code from status line (e.g., "HTTP/1.1 200 OK") */
-    sscanf(response, "HTTP/1.%*d %d", &status_code);
+    if (response_parts.has_content_length && body_len < response_parts.content_length) {
+      status_code = 502;
+      body = (char *) "502 Bad Gateway: Incomplete upstream response";
+      body_len = strlen(body);
+    }
 
     struct MHD_Response *mhd_resp = MHD_create_response_from_buffer(body_len, body, MHD_RESPMEM_MUST_COPY);
 
     /* Parse and forward headers */
-    char *saveptr;
-    char *line = strtok_r(response, "\r\n", &saveptr);
-    while (line)
+    char *headers = malloc(response_parts.header_len + 1);
+    if (headers != NULL)
     {
-      char *colon = strchr(line, ':');
-      if (colon)
+      char *saveptr;
+      char *line;
+
+      memcpy(headers, response, response_parts.header_len);
+      headers[response_parts.header_len] = '\0';
+
+      line = strtok_r(headers, "\r\n", &saveptr);
+      while (line)
       {
-        *colon = '\0';
-        char *key = line;
-        char *value = colon + 1;
-
-        /* Trim leading whitespace from value */
-        while (*value == ' ' || *value == '\t')
-          value++;
-
-        /* Trim trailing whitespace/\r/\n from value */
-        char *end = value + strlen(value) - 1;
-        while (end > value && (*end == '\r' || *end == '\n' || *end == ' ' || *end == '\t'))
+        char *colon = strchr(line, ':');
+        if (colon)
         {
-          *end = '\0';
-          end--;
-        }
+          *colon = '\0';
+          char *key = line;
+          char *value = colon + 1;
 
-        if (strcasecmp(key, "Transfer-Encoding") != 0 && strcasecmp(key, "Connection") != 0)
-        {
-          MHD_add_response_header(mhd_resp, key, value);
+          while (*value == ' ' || *value == '\t') value++;
+
+          if (*value != '\0') {
+            char *end = value + strlen(value) - 1;
+            while (end > value && (*end == '\r' || *end == '\n' || *end == ' ' || *end == '\t'))
+            {
+              *end = '\0';
+              end--;
+            }
+          }
+
+          if (strcasecmp(key, "Transfer-Encoding") != 0 && strcasecmp(key, "Connection") != 0)
+          {
+            MHD_add_response_header(mhd_resp, key, value);
+          }
         }
+        line = strtok_r(NULL, "\r\n", &saveptr);
       }
-      line = strtok_r(NULL, "\r\n", &saveptr);
+
+      free(headers);
     }
 
     MHD_queue_response(connection, status_code, mhd_resp);
